@@ -145,6 +145,15 @@ body {
   transform: translate(-50%, -50%) scale(0.75);
 }
 
+@media (max-width: 768px) and (orientation: portrait) {
+  .custom-overlay,
+  .custom-overlay.loaded {
+    max-width: 90vw;
+    max-height: 85vh;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 /* Info button */
 .info-button {
   position: fixed;
