@@ -1,10 +1,11 @@
 ## Congratulations!
 
-Pokémon assets are ©2025 Nintendo, Creatures Inc., and GAME FREAK inc.
-All trademarks and copyrights are property of their respective owners.
-These assets are used here under fair use for non-commercial, educational, and fan-based purposes.
-No affiliation or endorsement by Nintendo, Creatures Inc., GAME FREAK, or The Pokémon Company is implied.
+Pokémon assets are ©2025 Nintendo, Creatures Inc., and GAME FREAK inc.  
+Godzilla is a trademark of and © Toho Co., Ltd.  
+Hello Kitty and related characters are © 1976, 2026 SANRIO CO., LTD. All rights reserved.
 
-[Background source](https://craftpix.net/freebies/free-underwater-world-parallax-game-backgrounds/)  
+All trademarks and copyrights are the property of their respective owners. These assets are used here for non-commercial, educational, and fan-based purposes. No affiliation with or endorsement by Nintendo, Creatures Inc., GAME FREAK, The Pokémon Company, Toho Co., Ltd., or Sanrio Co., Ltd. is implied.
 
-Pokémon HOME images Gen I - IX provided by [@zim_](https://x.com/zim_)
+[Background source](https://craftpix.net/freebies/free-underwater-world-parallax-game-backgrounds/)
+
+Pokémon HOME images Gen I–IX provided by [@zim_](https://x.com/zim_)
