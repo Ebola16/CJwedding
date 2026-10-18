@@ -88,34 +88,39 @@ function waitForLayerTransitions(layers) {
   })));
 }
 
-function revealCustomOverlay() {
+async function revealCustomOverlay() {
   const overlay = document.getElementById('customOverlay');
-  const showWhenDecoded = () => {
-    if (typeof overlay.decode !== 'function') {
-      overlay.classList.add('loaded');
-      return;
-    }
 
-    overlay.decode().then(() => {
-      overlay.classList.add('loaded');
-    }).catch(error => {
-      console.error('Failed to decode image:', overlay.src, error);
+  if (!overlay.complete) {
+    await new Promise(resolve => {
+      const onLoad = () => {
+        overlay.removeEventListener('error', onError);
+        resolve();
+      };
+      const onError = () => {
+        overlay.removeEventListener('load', onLoad);
+        resolve();
+      };
+      overlay.addEventListener('load', onLoad, { once: true });
+      overlay.addEventListener('error', onError, { once: true });
     });
-  };
+  }
 
-  if (overlay.complete) {
-    if (overlay.naturalWidth > 0) {
-      showWhenDecoded();
-    } else {
-      console.error('Failed to load image:', overlay.src);
-    }
+  if (overlay.naturalWidth === 0) {
+    console.error('Failed to load image:', overlay.src);
     return;
   }
 
-  overlay.addEventListener('load', showWhenDecoded, { once: true });
-  overlay.addEventListener('error', () => {
-    console.error('Failed to load image:', overlay.src);
-  }, { once: true });
+  if (typeof overlay.decode === 'function') {
+    try {
+      await overlay.decode();
+    } catch (error) {
+      console.error('Failed to decode image:', overlay.src, error);
+      return;
+    }
+  }
+
+  overlay.classList.add('loaded');
 }
 
 function finishLoading() {
@@ -138,7 +143,14 @@ function finishLoading() {
   layersVisible.then(() => {
     const loadingIndicator = document.getElementById('loadingIndicator');
     if (loadingIndicator) loadingIndicator.classList.add('hidden');
-    revealCustomOverlay();
+
+    revealCustomOverlay().then(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          container.classList.add('animation-started');
+        });
+      });
+    });
   });
 }
 
@@ -157,15 +169,11 @@ function setupImageLoading() {
 }
 
 function getActualViewportSize() {
-  let width = window.innerWidth;
-  let height = window.innerHeight;
-  if (window.visualViewport) {
-    width = window.visualViewport.width;
-    height = window.visualViewport.height;
-  }
+  let width = document.documentElement.clientWidth;
+  let height = document.documentElement.clientHeight;
   if (width <= 0 || height <= 0) {
-    width = document.documentElement.clientWidth || window.innerWidth;
-    height = document.documentElement.clientHeight || window.innerHeight;
+    width = window.innerWidth;
+    height = window.innerHeight;
   }
   return { width: Math.round(width), height: Math.round(height) };
 }
@@ -208,9 +216,6 @@ if (screen.orientation) {
   screen.orientation.addEventListener('change', handleOrientationChange);
 } else {
   window.addEventListener('orientationchange', handleOrientationChange);
-}
-if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', handleResize, { passive: true });
 }
 
 // GIF handling
@@ -300,7 +305,8 @@ async function initialize() {
     setupImageLoading();
     const gifs = await fetchGifList();
     const checkReady = () => {
-      if (allLayersReady) {
+      const container = document.getElementById('parallaxContainer');
+      if (container && container.classList.contains('animation-started')) {
         setTimeout(() => {
           spawnTravelingGif(gifs);
         }, 1000);
