@@ -127,6 +127,8 @@ function finishLoading() {
   }
 
   const container = document.getElementById('parallaxContainer');
+  if (!container) return;
+  
   container.classList.add('ready');
 
   const layers = Array.from(container.querySelectorAll('.layer'));
