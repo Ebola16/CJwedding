@@ -1,5 +1,6 @@
 let loadedImages = new Set();
 let allLayersReady = false;
+let loadingFinishScheduled = false;
 
 const layerImageStatus = {
   1: { loaded: 0, total: 2 },
@@ -17,34 +18,104 @@ function updateLoadingProgress() {
   if (loadingIndicator) loadingIndicator.textContent = `Loading... ${totalLoaded}/${totalImages}`;
 }
 
-function onImageLoad(img) {
-  const layer = parseInt(img.closest('.layer').dataset.layer);
+function markImageSettled(img) {
+  if (loadedImages.has(img)) return;
+  loadedImages.add(img);
+
+  const layer = parseInt(img.closest('.layer').dataset.layer, 10);
   layerImageStatus[layer].loaded++;
   updateLoadingProgress();
-  if (layerImageStatus[layer].loaded === layerImageStatus[layer].total) {
-    const layerElement = img.closest('.layer');
-    setTimeout(() => { layerElement.classList.add('loaded'); }, 50);
-  }
+
   const allComplete = Object.values(layerImageStatus).every(l => l.loaded === l.total);
-  if (allComplete && !allLayersReady) {
+  if (allComplete && !allLayersReady && !loadingFinishScheduled) {
+    loadingFinishScheduled = true;
     setTimeout(() => { finishLoading(); }, 200);
   }
 }
 
-function finishLoading() {
-  allLayersReady = true;
-  document.body.classList.remove('loading');
-  document.getElementById('parallaxContainer').classList.add('ready');
-  document.getElementById('loadingIndicator').classList.add('hidden');
-
-  const overlay = document.getElementById('customOverlay');
-  if (overlay) {
-    setTimeout(() => {
-      overlay.classList.add('loaded');
-    }, 200); // slight delay for smooth sequencing
+function onImageLoad(img) {
+  if (typeof img.decode !== 'function') {
+    markImageSettled(img);
+    return;
   }
 
-  setTimeout(() => { scaleForViewport(); }, 100);
+  img.decode().then(() => {
+    markImageSettled(img);
+  }).catch(error => {
+    console.error('Failed to decode image:', img.src, error);
+    markImageSettled(img);
+  });
+}
+
+function onImageError(img) {
+  console.error('Failed to load image:', img.src);
+  markImageSettled(img);
+}
+
+function waitForLayerTransitions(layers) {
+  return Promise.all(layers.map(layer => new Promise(resolve => {
+    let timeout;
+    const finish = () => {
+      clearTimeout(timeout);
+      layer.removeEventListener('transitionend', onTransitionEnd);
+      resolve();
+    };
+    const onTransitionEnd = event => {
+      if (event.target === layer && event.propertyName === 'opacity') finish();
+    };
+
+    layer.addEventListener('transitionend', onTransitionEnd);
+    const duration = getComputedStyle(layer).transitionDuration.split(',')[0].trim();
+    const durationMs = parseFloat(duration) * (duration.endsWith('ms') ? 1 : 1000);
+    timeout = setTimeout(finish, durationMs + 50);
+  })));
+}
+
+function revealCustomOverlay() {
+  const overlay = document.getElementById('customOverlay');
+  const showWhenDecoded = () => {
+    if (typeof overlay.decode !== 'function') {
+      overlay.classList.add('loaded');
+      return;
+    }
+
+    overlay.decode().then(() => {
+      overlay.classList.add('loaded');
+    }).catch(error => {
+      console.error('Failed to decode image:', overlay.src, error);
+    });
+  };
+
+  if (overlay.complete) {
+    if (overlay.naturalWidth > 0) {
+      showWhenDecoded();
+    } else {
+      console.error('Failed to load image:', overlay.src);
+    }
+    return;
+  }
+
+  overlay.addEventListener('load', showWhenDecoded, { once: true });
+  overlay.addEventListener('error', () => {
+    console.error('Failed to load image:', overlay.src);
+  }, { once: true });
+}
+
+function finishLoading() {
+  allLayersReady = true;
+  scaleForViewport();
+  document.body.classList.remove('loading');
+  const container = document.getElementById('parallaxContainer');
+  container.classList.add('ready');
+
+  const layers = Array.from(container.querySelectorAll('.layer'));
+  const layersVisible = waitForLayerTransitions(layers);
+  layers.forEach(layer => layer.classList.add('loaded'));
+
+  layersVisible.then(() => {
+    document.getElementById('loadingIndicator').classList.add('hidden');
+    revealCustomOverlay();
+  });
 }
 
 function setupImageLoading() {
@@ -52,12 +123,11 @@ function setupImageLoading() {
   images.forEach(img => {
     if (img.complete && img.naturalWidth > 0) {
       onImageLoad(img);
+    } else if (img.complete) {
+      onImageError(img);
     } else {
-      img.addEventListener('load', () => onImageLoad(img));
-      img.addEventListener('error', e => {
-        console.error('Failed to load image:', e.target.src);
-        onImageLoad(img);
-      });
+      img.addEventListener('load', () => onImageLoad(img), { once: true });
+      img.addEventListener('error', () => onImageError(img), { once: true });
     }
   });
 }
